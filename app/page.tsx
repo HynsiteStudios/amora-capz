@@ -21,7 +21,7 @@ const products: Product[] = [
     image: "/products/car-cap-1.jpg",
     tag: "Bestseller",
     description:
-      "The signature Amora cap, designed for everyday wear with a distinctive finish.",
+      "The Amora Golf Cap — a clean, distinctive design made for the course and everyday wear.",
   },
   {
     id: 2,
@@ -29,7 +29,7 @@ const products: Product[] = [
     image: "/products/car-cap-2.jpg",
     tag: "New",
     description:
-      "A clean black Amora design made to work with any everyday look.",
+      "The Amora Black Cap — an all-black everyday essential featuring the signature Amora logo.",
   },
   {
     id: 3,
@@ -37,7 +37,7 @@ const products: Product[] = [
     image: "/products/car-cap-3.jpg",
     tag: "New",
     description:
-      "A versatile Amora design with a clean, understated finish.",
+      "The Amora Grey Cap — a versatile neutral design with the signature Amora finish.",
   },
   {
     id: 4,
@@ -45,7 +45,7 @@ const products: Product[] = [
     image: "/products/car-cap-4.jpg",
     tag: "Limited",
     description:
-      "A distinctive Amora cap designed to stand out while keeping things simple.",
+      "The Amora Navy Cap — a darker statement piece designed for a clean, understated look.",
   },
 ];
 
@@ -215,156 +215,158 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/[0.08]">
-        <div className="mx-auto grid min-h-[570px] max-w-[1400px] lg:grid-cols-[46%_54%]">
-          <div className="relative z-10 flex items-center bg-[#090909] px-7 py-20 sm:px-12 lg:px-16">
-            <div className="max-w-[500px]">
-              <p className="mb-6 text-[10px] font-medium uppercase tracking-[0.38em] text-white/55">
-                More than just a cap
-              </p>
+      <section className="relative min-h-[720px] overflow-hidden border-b border-white/[0.08] sm:min-h-[760px] lg:min-h-[700px]">
+        {/* Full Hero Background */}
+        <img
+          src="/products/car-cap-1.jpg"
+          alt="Amora Golf Cap"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
 
-              <h1 className="text-[56px] font-semibold uppercase leading-[0.88] tracking-[-0.045em] sm:text-[70px] lg:text-[78px]">
-                Wear the
-                <br />
-                <span className="text-white/45">difference.</span>
-              </h1>
+        {/* Dark overlays */}
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/25" />
 
-              <p className="mt-7 max-w-[390px] text-[15px] leading-6 text-white/65 sm:text-[16px]">
-                Premium caps designed for everyday.
-                <br />
-                Simple. Clean. Distinctive.
-              </p>
+        {/* Hero Content */}
+        <div className="relative z-10 mx-auto flex min-h-[720px] max-w-[1400px] items-center px-6 py-16 sm:min-h-[760px] sm:px-12 lg:min-h-[700px] lg:px-16">
+          <div className="max-w-[620px]">
+            <p className="mb-6 text-[10px] font-medium uppercase tracking-[0.38em] text-white/65">
+              More than just a cap
+            </p>
 
-              <div className="mt-8 flex flex-wrap gap-4">
-                <a
-                  href="#shop"
-                  className="inline-flex items-center gap-3 bg-white px-7 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-black transition hover:bg-white/85"
+            <h1 className="text-[52px] font-semibold uppercase leading-[0.88] tracking-[-0.045em] sm:text-[72px] lg:text-[86px]">
+              Wear the
+              <br />
+              <span className="text-white/55">difference.</span>
+            </h1>
+
+            <p className="mt-7 max-w-[420px] text-[15px] leading-6 text-white/75 sm:text-[16px]">
+              Premium caps designed for everyday.
+              <br />
+              Simple. Clean. Distinctive.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3 sm:gap-4">
+              <a
+                href="#shop"
+                className="inline-flex items-center gap-3 bg-white px-6 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-black transition hover:bg-white/85 sm:px-7"
+              >
+                Shop now
+                <span className="text-base leading-none">→</span>
+              </a>
+
+              <a
+                href="#about"
+                className="inline-flex items-center gap-3 border border-white/70 bg-black/10 px-6 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur-sm transition hover:bg-white hover:text-black sm:px-7"
+              >
+                Our story
+              </a>
+            </div>
+
+            {/* Hero Features */}
+            <div className="mt-12 grid max-w-[580px] grid-cols-3 gap-3 border-t border-white/20 pt-7 sm:gap-5">
+              <div className="flex gap-2.5 sm:gap-3">
+                <svg
+                  width="27"
+                  height="27"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  className="hidden shrink-0 text-white sm:block"
                 >
-                  Shop now
-                  <span className="text-base leading-none">→</span>
-                </a>
+                  <rect x="3" y="9" width="19" height="12" />
+                  <path d="M22 13h4l3 4v4h-7" />
+                  <circle cx="9" cy="24" r="3" />
+                  <circle cx="25" cy="24" r="3" />
+                </svg>
 
-                <a
-                  href="#about"
-                  className="inline-flex items-center gap-3 border border-white/60 px-7 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white transition hover:bg-white hover:text-black"
-                >
-                  Our story
-                </a>
+                <div>
+                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
+                    Fast shipping
+                  </p>
+                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
+                    On all orders
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-12 grid grid-cols-3 gap-4 border-t border-white/10 pt-7">
-                <div className="flex gap-3">
-                  <svg
-                    width="27"
-                    height="27"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    className="shrink-0 text-white"
-                  >
-                    <rect x="3" y="9" width="19" height="12" />
-                    <path d="M22 13h4l3 4v4h-7" />
-                    <circle cx="9" cy="24" r="3" />
-                    <circle cx="25" cy="24" r="3" />
-                  </svg>
+              <div className="flex gap-2.5 sm:gap-3">
+                <svg
+                  width="27"
+                  height="27"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  className="hidden shrink-0 text-white sm:block"
+                >
+                  <path d="m16 3 5 6-5 20L11 9l5-6Z" />
+                  <path d="m11 9-7 3 12 17L4 12m17-3 7 3-12 17 12-17" />
+                </svg>
 
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.15em]">
-                      Fast shipping
-                    </p>
-                    <p className="mt-1 text-[8px] uppercase tracking-[0.1em] text-white/45">
-                      On all orders
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
+                    Premium quality
+                  </p>
+                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
+                    Built to last
+                  </p>
                 </div>
+              </div>
 
-                <div className="flex gap-3">
-                  <svg
-                    width="27"
-                    height="27"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    className="shrink-0 text-white"
-                  >
-                    <path d="m16 3 5 6-5 20L11 9l5-6Z" />
-                    <path d="m11 9-7 3 12 17L4 12m17-3 7 3-12 17 12-17" />
-                  </svg>
+              <div className="flex gap-2.5 sm:gap-3">
+                <svg
+                  width="27"
+                  height="27"
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  className="hidden shrink-0 text-white sm:block"
+                >
+                  <circle cx="16" cy="16" r="12" />
+                  <path d="M4 16h24M16 4c4 4 5 8 5 12s-1 8-5 12c-4-4-5-8-5-12s1-8 5-12Z" />
+                </svg>
 
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.15em]">
-                      Premium quality
-                    </p>
-                    <p className="mt-1 text-[8px] uppercase tracking-[0.1em] text-white/45">
-                      Built to last
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <svg
-                    width="27"
-                    height="27"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.3"
-                    className="shrink-0 text-white"
-                  >
-                    <circle cx="16" cy="16" r="12" />
-                    <path d="M4 16h24M16 4c4 4 5 8 5 12s-1 8-5 12c-4-4-5-8-5-12s1-8 5-12Z" />
-                  </svg>
-
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.15em]">
-                      Join the movement
-                    </p>
-                    <p className="mt-1 text-[8px] uppercase tracking-[0.1em] text-white/45">
-                      @amoracapz
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
+                    Join the movement
+                  </p>
+                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
+                    @amoracapz
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Hero Image */}
-          <div className="relative min-h-[480px] overflow-hidden lg:min-h-0">
-            <img
-              src="/products/car-cap-1.jpg"
-              alt="Amora Golf Collection"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
+          {/* Hero Label */}
+          <div className="absolute bottom-7 right-6 text-right sm:bottom-9 sm:right-12 lg:right-16">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] sm:text-[11px]">
+              Amora Capz
+            </p>
 
-            <div className="absolute inset-0 bg-gradient-to-r from-[#090909] via-transparent to-transparent lg:w-[35%]" />
+            <p className="mt-1 text-[8px] uppercase tracking-[0.3em] text-white/60 sm:text-[9px]">
+              Golf Collection
+            </p>
 
-            <div className="absolute bottom-7 right-7 text-right sm:bottom-8 sm:right-10">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em]">
-                Amora Capz
-              </p>
-
-              <p className="mt-1 text-[9px] uppercase tracking-[0.3em] text-white/65">
-                Golf Collection
-              </p>
-
-              <div className="ml-auto mt-2 h-px w-5 bg-white/70" />
-            </div>
+            <div className="ml-auto mt-2 h-px w-5 bg-white/70" />
           </div>
         </div>
       </section>
 
       {/* Collection */}
       <section id="shop" className="border-b border-white/[0.08] bg-[#090909]">
-        <div className="mx-auto max-w-[1400px] px-6 py-20 sm:px-12 lg:px-14 lg:py-24">
+        <div className="mx-auto max-w-[1400px] px-5 py-16 sm:px-12 sm:py-20 lg:px-14 lg:py-24">
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[9px] uppercase tracking-[0.38em] text-white/50">
                 Featured
               </p>
 
-              <h2 className="mt-3 text-[28px] font-semibold uppercase tracking-[0.12em] sm:text-[34px]">
+              <h2 className="mt-3 text-[25px] font-semibold uppercase tracking-[0.1em] sm:text-[34px] sm:tracking-[0.12em]">
                 The Collection
               </h2>
             </div>
@@ -378,7 +380,7 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 lg:grid-cols-4">
             {products.map((product) => (
               <article key={product.id} className="group">
                 <button
@@ -393,23 +395,27 @@ export default function Home() {
                       className="aspect-[0.82] w-full object-cover transition duration-700 group-hover:scale-[1.025]"
                     />
 
-                    <div className="absolute left-3 top-3 bg-black px-3 py-1.5">
-                      <p className="text-[8px] font-medium uppercase tracking-[0.2em]">
+                    <div className="absolute left-2 top-2 bg-black px-2.5 py-1.5 sm:left-3 sm:top-3 sm:px-3">
+                      <p className="text-[7px] font-medium uppercase tracking-[0.16em] sm:text-[8px] sm:tracking-[0.2em]">
                         {product.tag}
                       </p>
                     </div>
 
-                    <span className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-white bg-black/60 text-xl font-light leading-none backdrop-blur transition group-hover:bg-white group-hover:text-black">
+                    <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border border-white bg-black/60 text-lg font-light leading-none backdrop-blur transition group-hover:bg-white group-hover:text-black sm:bottom-4 sm:right-4 sm:h-9 sm:w-9 sm:text-xl">
                       +
                     </span>
                   </div>
 
-                  <div className="mt-4">
-                    <h3 className="text-[10px] font-semibold uppercase tracking-[0.17em]">
+                  <div className="mt-3 sm:mt-4">
+                    <h3 className="text-[9px] font-semibold uppercase tracking-[0.13em] sm:text-[10px] sm:tracking-[0.17em]">
                       {product.name}
                     </h3>
 
-                    <p className="mt-2 text-[11px] text-white/55">
+                    <p className="mt-1.5 text-[10px] leading-4 text-white/55 sm:mt-2 sm:text-[11px]">
+                      {product.description}
+                    </p>
+
+                    <p className="mt-2 text-[9px] uppercase tracking-[0.12em] text-white/35 sm:mt-3">
                       Price coming soon
                     </p>
                   </div>
@@ -423,7 +429,7 @@ export default function Home() {
       {/* Our Story */}
       <section id="about" className="border-b border-white/[0.08] bg-[#090909]">
         <div className="mx-auto grid max-w-[1400px] lg:grid-cols-2">
-          <div className="relative min-h-[390px] overflow-hidden lg:min-h-[460px]">
+          <div className="relative min-h-[340px] overflow-hidden sm:min-h-[390px] lg:min-h-[460px]">
             <img
               src="/products/car-cap-4.jpg"
               alt="Amora cap"
@@ -433,13 +439,13 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#090909]" />
           </div>
 
-          <div className="flex items-center px-7 py-20 sm:px-12 lg:px-20">
+          <div className="flex items-center px-6 py-16 sm:px-12 sm:py-20 lg:px-20">
             <div className="max-w-[500px]">
               <p className="text-[9px] uppercase tracking-[0.38em] text-white/50">
                 Our story
               </p>
 
-              <h2 className="mt-4 text-[30px] font-semibold uppercase leading-[1.08] tracking-[0.06em] sm:text-[37px]">
+              <h2 className="mt-4 text-[28px] font-semibold uppercase leading-[1.08] tracking-[0.05em] sm:text-[37px] sm:tracking-[0.06em]">
                 A different
                 <br />
                 kind of cap brand.
@@ -466,14 +472,14 @@ export default function Home() {
 
       {/* Instagram */}
       <section className="border-b border-white/[0.08] bg-[#090909]">
-        <div className="mx-auto max-w-[1400px] px-6 py-16 sm:px-12 lg:px-14">
+        <div className="mx-auto max-w-[1400px] px-5 py-14 sm:px-12 sm:py-16 lg:px-14">
           <div className="flex items-end justify-between">
             <div>
               <p className="text-[9px] uppercase tracking-[0.38em] text-white/50">
                 Follow us
               </p>
 
-              <h2 className="mt-3 text-[24px] font-semibold uppercase tracking-[0.13em] sm:text-[28px]">
+              <h2 className="mt-3 text-[23px] font-semibold uppercase tracking-[0.1em] sm:text-[28px] sm:tracking-[0.13em]">
                 @amoracapz
               </h2>
             </div>
@@ -489,24 +495,19 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="mt-9 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {[
-              "/products/car-cap-3.jpg",
-              "/products/car-cap-2.jpg",
-              "/products/car-cap-1.jpg",
-              "/products/car-cap-4.jpg",
-              "/products/car-cap-2.jpg",
-            ].map((image, index) => (
+          {/* Four unique images only */}
+          <div className="mt-8 grid grid-cols-2 gap-2 sm:mt-9 sm:grid-cols-4">
+            {products.map((product) => (
               <a
-                key={`${image}-${index}`}
+                key={product.id}
                 href="https://www.instagram.com/amoracapz/"
                 target="_blank"
                 rel="noreferrer"
                 className="group block overflow-hidden"
               >
                 <img
-                  src={image}
-                  alt="Amora Capz Instagram"
+                  src={product.image}
+                  alt={`${product.name} - Amora Capz`}
                   className="aspect-square w-full object-cover transition duration-700 group-hover:scale-105"
                 />
               </a>
@@ -517,39 +518,39 @@ export default function Home() {
 
       {/* Footer */}
       <footer id="contact" className="bg-[#090909]">
-        <div className="mx-auto max-w-[1400px] px-6 py-10 sm:px-12 lg:px-14">
-          <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
+        <div className="mx-auto max-w-[1400px] px-5 py-9 sm:px-12 lg:px-14">
+          <div className="flex flex-col items-center justify-between gap-7 md:flex-row">
             <img
               src="/logo.png"
               alt="Amora Capz"
-              className="h-[55px] w-auto object-contain"
+              className="h-[50px] w-auto object-contain sm:h-[55px]"
             />
 
-            <nav className="flex items-center gap-8">
+            <nav className="flex items-center gap-6 sm:gap-8">
               <a
                 href="#"
-                className="text-[9px] uppercase tracking-[0.25em] text-white/75 transition hover:text-white"
+                className="text-[9px] uppercase tracking-[0.2em] text-white/75 transition hover:text-white"
               >
                 Home
               </a>
 
               <a
                 href="#shop"
-                className="text-[9px] uppercase tracking-[0.25em] text-white/75 transition hover:text-white"
+                className="text-[9px] uppercase tracking-[0.2em] text-white/75 transition hover:text-white"
               >
                 Shop
               </a>
 
               <a
                 href="#about"
-                className="text-[9px] uppercase tracking-[0.25em] text-white/75 transition hover:text-white"
+                className="text-[9px] uppercase tracking-[0.2em] text-white/75 transition hover:text-white"
               >
                 About
               </a>
 
               <a
                 href="#contact"
-                className="text-[9px] uppercase tracking-[0.25em] text-white/75 transition hover:text-white"
+                className="text-[9px] uppercase tracking-[0.2em] text-white/75 transition hover:text-white"
               >
                 Contact
               </a>
@@ -595,12 +596,12 @@ export default function Home() {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
 
-          <div className="absolute left-1/2 top-1/2 w-[calc(100%-32px)] max-w-[950px] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-[#101010] shadow-2xl">
+          <div className="absolute left-1/2 top-1/2 w-[calc(100%-24px)] max-w-[950px] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-[#101010] shadow-2xl sm:w-[calc(100%-32px)]">
             <button
               type="button"
               onClick={closeProduct}
               aria-label="Close"
-              className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg text-white backdrop-blur transition hover:bg-white hover:text-black"
+              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg text-white backdrop-blur transition hover:bg-white hover:text-black sm:right-5 sm:top-5"
             >
               ×
             </button>
@@ -610,31 +611,31 @@ export default function Home() {
                 <img
                   src={selectedProduct.image}
                   alt={selectedProduct.name}
-                  className="h-full max-h-[650px] w-full object-cover"
+                  className="h-auto max-h-[500px] w-full object-cover md:h-full md:max-h-[650px]"
                 />
               </div>
 
-              <div className="flex flex-col justify-center p-7 sm:p-10">
+              <div className="flex flex-col justify-center p-6 sm:p-10">
                 <p className="text-[9px] uppercase tracking-[0.35em] text-white/45">
                   {selectedProduct.tag}
                 </p>
 
-                <h2 className="mt-4 text-3xl font-semibold uppercase leading-tight tracking-[0.05em]">
+                <h2 className="mt-4 text-2xl font-semibold uppercase leading-tight tracking-[0.05em] sm:text-3xl">
                   {selectedProduct.name}
                 </h2>
 
-                <div className="mt-6 h-px w-full bg-white/10" />
+                <div className="mt-5 h-px w-full bg-white/10 sm:mt-6" />
 
-                <p className="mt-6 text-sm leading-7 text-white/55">
+                <p className="mt-5 text-sm leading-7 text-white/55 sm:mt-6">
                   {selectedProduct.description}
                 </p>
 
-                <p className="mt-8 text-xs uppercase tracking-[0.2em] text-white/40">
+                <p className="mt-7 text-xs uppercase tracking-[0.2em] text-white/40 sm:mt-8">
                   Price coming soon
                 </p>
 
                 {/* Quantity */}
-                <div className="mt-8">
+                <div className="mt-7 sm:mt-8">
                   <p className="mb-3 text-[9px] font-medium uppercase tracking-[0.25em] text-white/50">
                     Quantity
                   </p>
@@ -673,7 +674,7 @@ export default function Home() {
                   onClick={() =>
                     addToCart(selectedProduct, selectedQuantity)
                   }
-                  className="mt-8 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85"
+                  className="mt-7 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85 sm:mt-8"
                 >
                   Add to bag
                   <span className="text-base">→</span>
@@ -696,13 +697,13 @@ export default function Home() {
 
           <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-white/10 bg-[#0d0d0d]">
             {/* Bag Header */}
-            <div className="flex items-center justify-between border-b border-white/10 px-7 py-6">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 sm:px-7 sm:py-6">
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/45">
                   Your
                 </p>
 
-                <h2 className="mt-1 text-xl font-semibold uppercase tracking-[0.1em]">
+                <h2 className="mt-1 text-lg font-semibold uppercase tracking-[0.1em] sm:text-xl">
                   Shopping Bag
                 </h2>
               </div>
@@ -717,7 +718,7 @@ export default function Home() {
             </div>
 
             {/* Bag Contents */}
-            <div className="flex-1 overflow-y-auto px-7 py-6">
+            <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-7 sm:py-6">
               {cart.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-center">
                   <div>
@@ -815,7 +816,7 @@ export default function Home() {
 
             {/* Bag Footer */}
             {cart.length > 0 && (
-              <div className="border-t border-white/10 px-7 py-6">
+              <div className="border-t border-white/10 px-6 py-5 sm:px-7 sm:py-6">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-[0.2em] text-white/50">
                     Total
