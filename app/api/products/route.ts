@@ -1,7 +1,9 @@
-import { db } from "@/db";
+import { getDb } from "@/db";
 
 export async function GET() {
   try {
+    const db = getDb();
+
     const products = await db.sql<{
       id: number;
       name: string;

@@ -1,3 +1,5 @@
 import { getDatabase } from "@netlify/database";
 
-export const db = getDatabase();
+export function getDb() {
+  return getDatabase();
+}

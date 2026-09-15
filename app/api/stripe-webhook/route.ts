@@ -1,9 +1,19 @@
 import Stripe from "stripe";
-import { db } from "@/db";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+import { getDb } from "@/db";
 
 export async function POST(req: Request) {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecretKey || !webhookSecret) {
+    return new Response("Stripe is not configured.", {
+      status: 500,
+    });
+  }
+
+  const stripe = new Stripe(stripeSecretKey);
+  const db = getDb();
+
   const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
@@ -20,10 +30,13 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     );
   } catch (error) {
-    console.error("Webhook signature verification failed:", error);
+    console.error(
+      "Webhook signature verification failed:",
+      error
+    );
 
     return new Response("Invalid signature.", {
       status: 400,
@@ -35,27 +48,32 @@ export async function POST(req: Request) {
       event.type === "checkout.session.completed" ||
       event.type === "checkout.session.async_payment_succeeded"
     ) {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session =
+        event.data.object as Stripe.Checkout.Session;
 
-      // Delayed payment methods can send checkout.session.completed
-      // before the payment has actually succeeded.
       if (
         event.type === "checkout.session.completed" &&
         session.payment_status !== "paid" &&
         session.payment_status !== "no_payment_required"
       ) {
-        return new Response("Payment not completed yet.", {
-          status: 200,
-        });
+        return new Response(
+          "Payment not completed yet.",
+          { status: 200 }
+        );
       }
 
-      const reservationId = session.metadata?.reservation_id;
+      const reservationId =
+        session.metadata?.reservation_id;
 
       if (!reservationId) {
-        console.error("No reservation ID on Stripe session.");
-        return new Response("Missing reservation ID.", {
-          status: 400,
-        });
+        console.error(
+          "No reservation ID on Stripe session."
+        );
+
+        return new Response(
+          "Missing reservation ID.",
+          { status: 400 }
+        );
       }
 
       const client = await db.pool.connect();
@@ -63,11 +81,7 @@ export async function POST(req: Request) {
       try {
         await client.query("BEGIN");
 
-        // Lock the reservation so this cannot be processed twice.
-        const reservationResult = await client.query<{
-          id: string;
-          status: string;
-        }>(
+        const reservationResult = await client.query(
           `
             SELECT id, status
             FROM reservations
@@ -77,34 +91,39 @@ export async function POST(req: Request) {
           [reservationId]
         );
 
-        const reservation = reservationResult.rows[0];
+        const reservation = reservationResult
+          .rows[0] as
+          | {
+              id: string;
+              status: string;
+            }
+          | undefined;
 
         if (!reservation) {
-          throw new Error("Reservation not found.");
+          throw new Error(
+            "Reservation not found."
+          );
         }
 
-        // Already completed = webhook retry.
         if (reservation.status === "completed") {
           await client.query("COMMIT");
 
-          return new Response("Already processed.", {
-            status: 200,
-          });
+          return new Response(
+            "Already processed.",
+            { status: 200 }
+          );
         }
 
-        // Don't process an expired reservation.
         if (reservation.status === "expired") {
           await client.query("COMMIT");
 
-          return new Response("Reservation already expired.", {
-            status: 200,
-          });
+          return new Response(
+            "Reservation already expired.",
+            { status: 200 }
+          );
         }
 
-        const itemsResult = await client.query<{
-          product_id: number;
-          quantity: number;
-        }>(
+        const itemsResult = await client.query(
           `
             SELECT product_id, quantity
             FROM reservation_items
@@ -113,21 +132,29 @@ export async function POST(req: Request) {
           [reservationId]
         );
 
-        for (const item of itemsResult.rows) {
-          const productResult = await client.query<{
-            id: number;
-            stock: number;
-          }>(
-            `
-              SELECT id, stock
-              FROM products
-              WHERE id = $1
-              FOR UPDATE
-            `,
-            [item.product_id]
-          );
+        const items = itemsResult.rows as Array<{
+          product_id: number;
+          quantity: number;
+        }>;
 
-          const product = productResult.rows[0];
+        for (const item of items) {
+          const productResult =
+            await client.query(
+              `
+                SELECT id, stock
+                FROM products
+                WHERE id = $1
+                FOR UPDATE
+              `,
+              [item.product_id]
+            );
+
+          const product = productResult.rows[0] as
+            | {
+                id: number;
+                stock: number;
+              }
+            | undefined;
 
           if (!product) {
             throw new Error(
@@ -174,8 +201,11 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "checkout.session.expired") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const reservationId = session.metadata?.reservation_id;
+      const session =
+        event.data.object as Stripe.Checkout.Session;
+
+      const reservationId =
+        session.metadata?.reservation_id;
 
       if (reservationId) {
         await db.sql`
@@ -191,14 +221,19 @@ export async function POST(req: Request) {
       }
     }
 
-    return new Response("Webhook received.", {
-      status: 200,
-    });
+    return new Response(
+      "Webhook received.",
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Stripe webhook error:", error);
+    console.error(
+      "Stripe webhook error:",
+      error
+    );
 
-    return new Response("Webhook processing failed.", {
-      status: 500,
-    });
+    return new Response(
+      "Webhook processing failed.",
+      { status: 500 }
+    );
   }
 }

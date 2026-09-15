@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { db } from "@/db";
+import { getDb } from "@/db";
 import { randomUUID } from "crypto";
 
 type CheckoutItem = {
@@ -7,7 +7,21 @@ type CheckoutItem = {
   quantity: number;
 };
 
+type Product = {
+  id: number;
+  name: string;
+  price_pence: number;
+  stock: number;
+};
+
+type ReservedRow = {
+  product_id: number;
+  reserved: number;
+};
+
 export async function POST(req: Request) {
+  let reservationId: string | null = null;
+
   try {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -19,34 +33,38 @@ export async function POST(req: Request) {
     }
 
     const stripe = new Stripe(stripeSecretKey);
+    const db = getDb();
 
     const body = await req.json();
+    const rawItems = Array.isArray(body.items) ? body.items : [];
 
-    const items: CheckoutItem[] = Array.isArray(body.items)
-      ? body.items
-      : [];
-
-    if (items.length === 0) {
+    if (rawItems.length === 0) {
       return Response.json(
         { error: "Your basket is empty." },
         { status: 400 }
       );
     }
 
-    // Clean and validate the basket
-    const cleanItems = items
-      .map((item) => ({
-        id: Number(item.id),
-        quantity: Number(item.quantity),
-      }))
+    const items: CheckoutItem[] = rawItems
+      .map((item: unknown) => {
+        const value = item as {
+          id?: unknown;
+          quantity?: unknown;
+        };
+
+        return {
+          id: Number(value.id),
+          quantity: Number(value.quantity),
+        };
+      })
       .filter(
-        (item) =>
+        (item: CheckoutItem) =>
           Number.isInteger(item.id) &&
           Number.isInteger(item.quantity) &&
           item.quantity > 0
       );
 
-    if (cleanItems.length !== items.length) {
+    if (items.length !== rawItems.length) {
       return Response.json(
         { error: "Invalid basket." },
         { status: 400 }
@@ -55,19 +73,17 @@ export async function POST(req: Request) {
 
     const client = await db.pool.connect();
 
-    const reservationId = randomUUID();
+    let products: Product[] = [];
+    reservationId = randomUUID();
 
     try {
       await client.query("BEGIN");
 
-      const productIds = cleanItems.map((item) => item.id);
+      const productIds = items.map(
+        (item: CheckoutItem) => item.id
+      );
 
-      const productsResult = await client.query<{
-        id: number;
-        name: string;
-        price_pence: number;
-        stock: number;
-      }>(
+      const productsResult = await client.query(
         `
           SELECT id, name, price_pence, stock
           FROM products
@@ -77,17 +93,15 @@ export async function POST(req: Request) {
         [productIds]
       );
 
-      const products = productsResult.rows;
+      products = productsResult.rows as Product[];
 
-      if (products.length !== cleanItems.length) {
-        throw new Error("One or more products could not be found.");
+      if (products.length !== items.length) {
+        throw new Error(
+          "One or more products could not be found."
+        );
       }
 
-      // Check currently reserved stock
-      const reservedResult = await client.query<{
-        product_id: number;
-        reserved: number;
-      }>(
+      const reservedResult = await client.query(
         `
           SELECT
             ri.product_id,
@@ -103,22 +117,29 @@ export async function POST(req: Request) {
         [productIds]
       );
 
-      const reservedMap = new Map(
-        reservedResult.rows.map((row) => [
-          row.product_id,
-          row.reserved,
-        ])
-      );
+      const reservedRows =
+        reservedResult.rows as ReservedRow[];
 
-      for (const item of cleanItems) {
-        const product = products.find((p) => p.id === item.id);
+      const reservedMap = new Map<number, number>();
+
+      for (const row of reservedRows) {
+        reservedMap.set(row.product_id, row.reserved);
+      }
+
+      for (const item of items) {
+        const product = products.find(
+          (p: Product) => p.id === item.id
+        );
 
         if (!product) {
           throw new Error("Product not found.");
         }
 
-        const reserved = reservedMap.get(product.id) ?? 0;
-        const available = product.stock - reserved;
+        const reserved =
+          reservedMap.get(product.id) ?? 0;
+
+        const available =
+          product.stock - reserved;
 
         if (item.quantity > available) {
           throw new Error(
@@ -127,7 +148,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Reserve the products for 30 minutes
       await client.query(
         `
           INSERT INTO reservations (
@@ -144,7 +164,7 @@ export async function POST(req: Request) {
         [reservationId]
       );
 
-      for (const item of cleanItems) {
+      for (const item of items) {
         await client.query(
           `
             INSERT INTO reservation_items (
@@ -154,7 +174,11 @@ export async function POST(req: Request) {
             )
             VALUES ($1, $2, $3)
           `,
-          [reservationId, item.id, item.quantity]
+          [
+            reservationId,
+            item.id,
+            item.quantity,
+          ]
         );
       }
 
@@ -166,65 +190,76 @@ export async function POST(req: Request) {
       client.release();
     }
 
-    try {
-      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
-        cleanItems.map((item) => {
-          const product = products.find((p) => p.id === item.id)!;
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+      items.map((item: CheckoutItem) => {
+        const product = products.find(
+          (p: Product) => p.id === item.id
+        );
 
-          return {
-            quantity: item.quantity,
-            price_data: {
-              currency: "gbp",
-              unit_amount: product.price_pence,
-              product_data: {
-                name: product.name,
-              },
+        if (!product) {
+          throw new Error("Product not found.");
+        }
+
+        return {
+          quantity: item.quantity,
+          price_data: {
+            currency: "gbp",
+            unit_amount: product.price_pence,
+            product_data: {
+              name: product.name,
             },
-          };
-        });
+          },
+        };
+      });
 
-      const session = await stripe.checkout.sessions.create({
+    const session =
+      await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: lineItems,
 
         success_url:
           "https://amora-capz.netlify.app/?success=true",
+
         cancel_url:
           "https://amora-capz.netlify.app/?cancelled=true",
 
-        expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+        expires_at:
+          Math.floor(Date.now() / 1000) + 30 * 60,
 
         metadata: {
           reservation_id: reservationId,
         },
       });
 
-      await db.sql`
-        UPDATE reservations
-        SET stripe_session_id = ${session.id}
-        WHERE id = ${reservationId}
-      `;
+    await db.sql`
+      UPDATE reservations
+      SET stripe_session_id = ${session.id}
+      WHERE id = ${reservationId}
+    `;
 
-      return Response.json({
-        url: session.url,
-      });
-    } catch (error) {
-      console.error("Stripe checkout error:", error);
-
-      await db.sql`
-        UPDATE reservations
-        SET status = 'expired'
-        WHERE id = ${reservationId}
-          AND status = 'reserved'
-      `;
-
-      return Response.json(
-        { error: "Unable to create checkout session." },
-        { status: 500 }
-      );
-    }
+    return Response.json({
+      url: session.url,
+    });
   } catch (error) {
     console.error("Checkout error:", error);
+
+    if (reservationId) {
+      try {
+        const db = getDb();
+
+        await db.sql`
+          UPDATE reservations
+          SET status = 'expired'
+          WHERE id = ${reservationId}
+            AND status = 'reserved'
+        `;
+      } catch (cleanupError) {
+        console.error(
+          "Reservation cleanup error:",
+          cleanupError
+        );
+      }
+    }
 
     const message =
       error instanceof Error
