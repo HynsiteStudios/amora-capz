@@ -1,219 +1,201 @@
 import Stripe from "stripe";
 import { db } from "@/db";
 
-type CartItem = {
-  id: number;
-  quantity: number;
-};
-
-type Product = {
-  id: number;
-  name: string;
-  price_pence: number;
-  stock: number;
-};
-
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-  let reservationId: string | null = null;
-  let client;
+  const signature = req.headers.get("stripe-signature");
+
+  if (!signature) {
+    return new Response("Missing Stripe signature.", {
+      status: 400,
+    });
+  }
+
+  const body = await req.text();
+
+  let event: Stripe.Event;
 
   try {
-    const { items } = (await req.json()) as { items: CartItem[] };
-
-    if (!Array.isArray(items) || items.length === 0) {
-      return Response.json(
-        { error: "Your basket is empty." },
-        { status: 400 }
-      );
-    }
-
-    const cleanItems = items.map((item) => ({
-      id: Number(item.id),
-      quantity: Number(item.quantity),
-    }));
-
-    if (
-      cleanItems.some(
-        (item) =>
-          !Number.isInteger(item.id) ||
-          !Number.isInteger(item.quantity) ||
-          item.quantity < 1
-      )
-    ) {
-      return Response.json(
-        { error: "Invalid basket." },
-        { status: 400 }
-      );
-    }
-
-    client = await db.pool.connect();
-
-    await client.query("BEGIN");
-
-    await client.query(`
-      UPDATE reservations
-      SET status = 'expired'
-      WHERE status = 'reserved'
-        AND expires_at <= NOW()
-    `);
-
-    const productIds = cleanItems.map((item) => item.id);
-
-    const productsResult = await client.query<Product>(
-      `
-        SELECT id, name, price_pence, stock
-        FROM products
-        WHERE id = ANY($1::int[])
-        ORDER BY id
-        FOR UPDATE
-      `,
-      [productIds]
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
     );
-
-    const products = productsResult.rows;
-
-    if (products.length !== cleanItems.length) {
-      throw new Error("One or more products could not be found.");
-    }
-
-    for (const item of cleanItems) {
-      const product = products.find(
-        (p: Product) => p.id === item.id
-      );
-
-      if (!product) {
-        throw new Error("One or more products could not be found.");
-      }
-
-      const reservedResult = await client.query<{ reserved: number }>(
-        `
-          SELECT COALESCE(SUM(ri.quantity), 0)::int AS reserved
-          FROM reservation_items ri
-          INNER JOIN reservations r
-            ON r.id = ri.reservation_id
-          WHERE ri.product_id = $1
-            AND r.status = 'reserved'
-            AND r.expires_at > NOW()
-        `,
-        [item.id]
-      );
-
-      const reserved = reservedResult.rows[0]?.reserved ?? 0;
-      const available = product.stock - reserved;
-
-      if (item.quantity > available) {
-        throw new Error(
-          `${product.name} only has ${available} left.`
-        );
-      }
-    }
-
-    reservationId = crypto.randomUUID();
-
-    await client.query(
-      `
-        INSERT INTO reservations (
-          id,
-          status,
-          expires_at
-        )
-        VALUES (
-          $1,
-          'reserved',
-          NOW() + INTERVAL '30 minutes'
-        )
-      `,
-      [reservationId]
-    );
-
-    for (const item of cleanItems) {
-      await client.query(
-        `
-          INSERT INTO reservation_items (
-            reservation_id,
-            product_id,
-            quantity
-          )
-          VALUES ($1, $2, $3)
-        `,
-        [reservationId, item.id, item.quantity]
-      );
-    }
-
-    await client.query("COMMIT");
-
-    const origin =
-      req.headers.get("origin") || "http://localhost:8888";
-
-    const lineItems = cleanItems.map((item) => {
-      const product = products.find(
-        (p: Product) => p.id === item.id
-      )!;
-
-      return {
-        price_data: {
-          currency: "gbp",
-          product_data: {
-            name: product.name,
-          },
-          unit_amount: product.price_pence,
-        },
-        quantity: item.quantity,
-      };
-    });
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: lineItems,
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-      metadata: {
-        reservation_id: reservationId,
-      },
-      success_url: `${origin}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?cancelled=true`,
-    });
-
-    await db.sql`
-      UPDATE reservations
-      SET stripe_session_id = ${session.id}
-      WHERE id = ${reservationId}
-    `;
-
-    return Response.json({ url: session.url });
   } catch (error) {
-    if (client) {
+    console.error("Webhook signature verification failed:", error);
+
+    return new Response("Invalid signature.", {
+      status: 400,
+    });
+  }
+
+  try {
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      if (
+        event.type === "checkout.session.completed" &&
+        session.payment_status !== "paid" &&
+        session.payment_status !== "no_payment_required"
+      ) {
+        return new Response("Payment not completed yet.", {
+          status: 200,
+        });
+      }
+
+      const reservationId = session.metadata?.reservation_id;
+
+      if (!reservationId) {
+        console.error("No reservation ID on Stripe session.");
+
+        return new Response("Missing reservation ID.", {
+          status: 400,
+        });
+      }
+
+      const client = await db.pool.connect();
+
       try {
+        await client.query("BEGIN");
+
+        const reservationResult = await client.query<{
+          id: string;
+          status: string;
+        }>(
+          `
+            SELECT id, status
+            FROM reservations
+            WHERE id = $1
+            FOR UPDATE
+          `,
+          [reservationId]
+        );
+
+        const reservation = reservationResult.rows[0];
+
+        if (!reservation) {
+          throw new Error("Reservation not found.");
+        }
+
+        if (reservation.status === "completed") {
+          await client.query("COMMIT");
+
+          return new Response("Already processed.", {
+            status: 200,
+          });
+        }
+
+        if (reservation.status === "expired") {
+          await client.query("COMMIT");
+
+          return new Response("Reservation already expired.", {
+            status: 200,
+          });
+        }
+
+        const itemsResult = await client.query<{
+          product_id: number;
+          quantity: number;
+        }>(
+          `
+            SELECT product_id, quantity
+            FROM reservation_items
+            WHERE reservation_id = $1
+          `,
+          [reservationId]
+        );
+
+        for (const item of itemsResult.rows) {
+          const productResult = await client.query<{
+            id: number;
+            stock: number;
+          }>(
+            `
+              SELECT id, stock
+              FROM products
+              WHERE id = $1
+              FOR UPDATE
+            `,
+            [item.product_id]
+          );
+
+          const product = productResult.rows[0];
+
+          if (!product) {
+            throw new Error(
+              `Product ${item.product_id} not found.`
+            );
+          }
+
+          if (product.stock < item.quantity) {
+            throw new Error(
+              `Insufficient stock for product ${item.product_id}.`
+            );
+          }
+
+          await client.query(
+            `
+              UPDATE products
+              SET stock = stock - $1
+              WHERE id = $2
+            `,
+            [item.quantity, item.product_id]
+          );
+        }
+
+        await client.query(
+          `
+            UPDATE reservations
+            SET status = 'completed'
+            WHERE id = $1
+          `,
+          [reservationId]
+        );
+
+        await client.query("COMMIT");
+
+        console.log(
+          `Reservation ${reservationId} completed successfully.`
+        );
+      } catch (error) {
         await client.query("ROLLBACK");
-      } catch {}
+        throw error;
+      } finally {
+        client.release();
+      }
     }
 
-    console.error("Stripe checkout error:", error);
+    if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-    if (reservationId) {
-      try {
+      const reservationId = session.metadata?.reservation_id;
+
+      if (reservationId) {
         await db.sql`
           UPDATE reservations
           SET status = 'expired'
           WHERE id = ${reservationId}
             AND status = 'reserved'
         `;
-      } catch (cleanupError) {
-        console.error("Reservation cleanup error:", cleanupError);
+
+        console.log(
+          `Reservation ${reservationId} expired.`
+        );
       }
     }
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to create checkout session.";
+    return new Response("Webhook received.", {
+      status: 200,
+    });
+  } catch (error) {
+    console.error("Stripe webhook error:", error);
 
-    return Response.json(
-      { error: message },
-      { status: 500 }
-    );
-  } finally {
-    client?.release();
+    return new Response("Webhook processing failed.", {
+      status: 500,
+    });
   }
 }
