@@ -1,8 +1,6 @@
 import Stripe from "stripe";
 import { db } from "@/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 type CartItem = {
   id: number;
   quantity: number;
@@ -16,6 +14,8 @@ type Product = {
 };
 
 export async function POST(req: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
   let reservationId: string | null = null;
   let client;
 
