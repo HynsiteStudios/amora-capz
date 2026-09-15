@@ -8,6 +8,13 @@ type CartItem = {
   quantity: number;
 };
 
+type Product = {
+  id: number;
+  name: string;
+  price_pence: number;
+  stock: number;
+};
+
 export async function POST(req: Request) {
   let reservationId: string | null = null;
   let client;
@@ -45,7 +52,6 @@ export async function POST(req: Request) {
 
     await client.query("BEGIN");
 
-    // Expire old reservations.
     await client.query(`
       UPDATE reservations
       SET status = 'expired'
@@ -55,13 +61,7 @@ export async function POST(req: Request) {
 
     const productIds = cleanItems.map((item) => item.id);
 
-    // Lock the products while checking stock.
-    const productsResult = await client.query<{
-      id: number;
-      name: string;
-      price_pence: number;
-      stock: number;
-    }>(
+    const productsResult = await client.query<Product>(
       `
         SELECT id, name, price_pence, stock
         FROM products
@@ -79,7 +79,9 @@ export async function POST(req: Request) {
     }
 
     for (const item of cleanItems) {
-      const product = products.find((p) => p.id === item.id);
+      const product = products.find(
+        (p: Product) => p.id === item.id
+      );
 
       if (!product) {
         throw new Error("One or more products could not be found.");
@@ -146,7 +148,9 @@ export async function POST(req: Request) {
       req.headers.get("origin") || "http://localhost:8888";
 
     const lineItems = cleanItems.map((item) => {
-      const product = products.find((p) => p.id === item.id)!;
+      const product = products.find(
+        (p: Product) => p.id === item.id
+      )!;
 
       return {
         price_data: {
