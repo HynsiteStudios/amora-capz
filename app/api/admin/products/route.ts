@@ -1,7 +1,17 @@
+import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const cookieHeader = req.headers.get("cookie") || "";
+
+    if (!cookieHeader.includes("amora_admin=authenticated")) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401 }
+      );
+    }
+
     const db = getDb();
 
     const products = await db.sql<{
@@ -12,67 +22,37 @@ export async function GET() {
       description: string;
       tag: string;
       image: string;
-      reserved: number;
-      available: number;
+      active: boolean;
     }>`
       SELECT
-        p.id,
-        p.name,
-        p.price_pence,
-        p.stock,
-        p.description,
-        p.tag,
-        p.image,
-        COALESCE(SUM(
-          CASE
-            WHEN r.status = 'reserved'
-              AND r.expires_at > NOW()
-            THEN ri.quantity
-            ELSE 0
-          END
-        ), 0)::int AS reserved,
-        (
-          p.stock - COALESCE(SUM(
-            CASE
-              WHEN r.status = 'reserved'
-                AND r.expires_at > NOW()
-              THEN ri.quantity
-              ELSE 0
-            END
-          ), 0)
-        )::int AS available
-      FROM products p
-      LEFT JOIN reservation_items ri
-        ON ri.product_id = p.id
-      LEFT JOIN reservations r
-        ON r.id = ri.reservation_id
-      WHERE p.active = TRUE
-      GROUP BY
-        p.id,
-        p.name,
-        p.price_pence,
-        p.stock,
-        p.description,
-        p.tag,
-        p.image
-      ORDER BY p.id;
+        id,
+        name,
+        price_pence,
+        stock,
+        description,
+        tag,
+        image,
+        active
+      FROM products
+      ORDER BY id;
     `;
 
-    return Response.json(
+    return NextResponse.json(
       products.map((product) => ({
         id: product.id,
         name: product.name,
         price: product.price_pence,
-        stock: product.available,
+        stock: product.stock,
         description: product.description,
         tag: product.tag,
         image: product.image,
+        active: product.active,
       }))
     );
   } catch (error) {
-    console.error("Products error:", error);
+    console.error("Admin products error:", error);
 
-    return Response.json(
+    return NextResponse.json(
       { error: "Unable to load products." },
       { status: 500 }
     );
