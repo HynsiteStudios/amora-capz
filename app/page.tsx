@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Product = {
   id: number;
@@ -8,6 +8,7 @@ type Product = {
   image: string;
   tag: string;
   description: string;
+  stock: number;
 };
 
 type CartItem = Product & {
@@ -22,6 +23,7 @@ const products: Product[] = [
     tag: "Bestseller",
     description:
       "The Amora Golf Cap — a clean, distinctive design made for the course and everyday wear.",
+    stock: 0,
   },
   {
     id: 2,
@@ -30,6 +32,7 @@ const products: Product[] = [
     tag: "New",
     description:
       "The Amora Black Cap — an all-black everyday essential featuring the signature Amora logo.",
+    stock: 0,
   },
   {
     id: 3,
@@ -38,6 +41,7 @@ const products: Product[] = [
     tag: "New",
     description:
       "The Amora Grey Cap — a versatile neutral design with the signature Amora finish.",
+    stock: 0,
   },
   {
     id: 4,
@@ -46,18 +50,65 @@ const products: Product[] = [
     tag: "Limited",
     description:
       "The Amora Navy Cap — a darker statement piece designed for a clean, understated look.",
+    stock: 0,
   },
 ];
 
+const CAP_PRICE = 25;
+
 export default function Home() {
+  const [liveProducts, setLiveProducts] = useState<Product[]>(products);
+  const [stockLoading, setStockLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+
+  useEffect(() => {
+    async function loadStock() {
+      try {
+        const response = await fetch("/api/products");
+
+        if (!response.ok) {
+          throw new Error("Unable to load stock");
+        }
+
+        const data = await response.json();
+
+        setLiveProducts(
+          products.map((product) => {
+            const liveProduct = data.find(
+              (item: { id: number }) => item.id === product.id
+            );
+
+            return {
+              ...product,
+              stock: liveProduct?.stock ?? 0,
+            };
+          })
+        );
+      } catch (error) {
+        console.error("Stock loading error:", error);
+      } finally {
+        setStockLoading(false);
+      }
+    }
+
+    loadStock();
+  }, []);
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
+  const cartTotal = cart.reduce(
+    (total, item) => total + item.quantity * CAP_PRICE,
+    0
+  );
+
   function openProduct(product: Product) {
+    if (product.stock <= 0) return;
+
     setSelectedProduct(product);
     setSelectedQuantity(1);
   }
@@ -67,15 +118,22 @@ export default function Home() {
   }
 
   function addToCart(product: Product, quantity = 1) {
+    if (product.stock <= 0) return;
+
     setCart((currentCart) => {
       const existingItem = currentCart.find((item) => item.id === product.id);
 
       if (existingItem) {
+        const newQuantity = Math.min(
+          existingItem.quantity + quantity,
+          product.stock
+        );
+
         return currentCart.map((item) =>
           item.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + quantity,
+                quantity: newQuantity,
               }
             : item
         );
@@ -85,27 +143,34 @@ export default function Home() {
         ...currentCart,
         {
           ...product,
-          quantity,
+          quantity: Math.min(quantity, product.stock),
         },
       ];
     });
 
     setSelectedProduct(null);
     setSelectedQuantity(1);
+    setCartOpen(true);
   }
 
   function updateQuantity(productId: number, change: number) {
     setCart((currentCart) =>
       currentCart
-        .map((item) =>
-          item.id === productId
-            ? {
-                ...item,
-                quantity: item.quantity + change,
-              }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
+        .map((item) => {
+          if (item.id !== productId) return item;
+
+          const newQuantity = item.quantity + change;
+
+          if (newQuantity <= 0) {
+            return null;
+          }
+
+          return {
+            ...item,
+            quantity: Math.min(newQuantity, item.stock),
+          };
+        })
+        .filter((item): item is CartItem => item !== null)
     );
   }
 
@@ -113,6 +178,46 @@ export default function Home() {
     setCart((currentCart) =>
       currentCart.filter((item) => item.id !== productId)
     );
+  }
+
+  async function handleCheckout() {
+    if (cart.length === 0 || checkoutLoading) return;
+
+    setCheckoutLoading(true);
+    setCheckoutError("");
+
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: cart.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Unable to start checkout.");
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error(error);
+
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong starting checkout."
+      );
+
+      setCheckoutLoading(false);
+    }
   }
 
   return (
@@ -172,24 +277,6 @@ export default function Home() {
           <div className="flex items-center gap-5">
             <button
               type="button"
-              aria-label="Search"
-              className="hidden transition hover:opacity-60 sm:block"
-            >
-              <svg
-                width="21"
-                height="21"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20 20-4-4" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
               aria-label="Shopping bag"
               onClick={() => setCartOpen(true)}
               className="relative transition hover:opacity-60"
@@ -216,19 +303,16 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative min-h-[720px] overflow-hidden border-b border-white/[0.08] sm:min-h-[760px] lg:min-h-[700px]">
-        {/* Full Hero Background */}
         <img
           src="/products/car-cap-1.jpg"
           alt="Amora Golf Cap"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
 
-        {/* Dark overlays */}
         <div className="absolute inset-0 bg-black/55" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/15" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/25" />
 
-        {/* Hero Content */}
         <div className="relative z-10 mx-auto flex min-h-[720px] max-w-[1400px] items-center px-6 py-16 sm:min-h-[760px] sm:px-12 lg:min-h-[700px] lg:px-16">
           <div className="max-w-[620px]">
             <p className="mb-6 text-[10px] font-medium uppercase tracking-[0.38em] text-white/65">
@@ -258,107 +342,32 @@ export default function Home() {
 
               <a
                 href="#about"
-                className="inline-flex items-center gap-3 border border-white/70 bg-black/10 px-6 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white backdrop-blur-sm transition hover:bg-white hover:text-black sm:px-7"
+                className="inline-flex items-center gap-3 border border-white/70 bg-black/10 px-6 py-3.5 text-[10px] font-semibold uppercase tracking-[0.22em] transition hover:bg-white hover:text-black sm:px-7"
               >
                 Our story
               </a>
             </div>
-
-            {/* Hero Features */}
-            <div className="mt-12 grid max-w-[580px] grid-cols-3 gap-3 border-t border-white/20 pt-7 sm:gap-5">
-              <div className="flex gap-2.5 sm:gap-3">
-                <svg
-                  width="27"
-                  height="27"
-                  viewBox="0 0 32 32"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  className="hidden shrink-0 text-white sm:block"
-                >
-                  <rect x="3" y="9" width="19" height="12" />
-                  <path d="M22 13h4l3 4v4h-7" />
-                  <circle cx="9" cy="24" r="3" />
-                  <circle cx="25" cy="24" r="3" />
-                </svg>
-
-                <div>
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
-                    Fast shipping
-                  </p>
-                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
-                    On all orders
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5 sm:gap-3">
-                <svg
-                  width="27"
-                  height="27"
-                  viewBox="0 0 32 32"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  className="hidden shrink-0 text-white sm:block"
-                >
-                  <path d="m16 3 5 6-5 20L11 9l5-6Z" />
-                  <path d="m11 9-7 3 12 17L4 12m17-3 7 3-12 17 12-17" />
-                </svg>
-
-                <div>
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
-                    Premium quality
-                  </p>
-                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
-                    Built to last
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5 sm:gap-3">
-                <svg
-                  width="27"
-                  height="27"
-                  viewBox="0 0 32 32"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  className="hidden shrink-0 text-white sm:block"
-                >
-                  <circle cx="16" cy="16" r="12" />
-                  <path d="M4 16h24M16 4c4 4 5 8 5 12s-1 8-5 12c-4-4-5-8-5-12s1-8 5-12Z" />
-                </svg>
-
-                <div>
-                  <p className="text-[8px] font-semibold uppercase tracking-[0.12em] sm:text-[9px] sm:tracking-[0.15em]">
-                    Join the movement
-                  </p>
-                  <p className="mt-1 text-[7px] uppercase tracking-[0.08em] text-white/50 sm:text-[8px]">
-                    @amoracapz
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
+        </div>
 
-          {/* Hero Label */}
-          <div className="absolute bottom-7 right-6 text-right sm:bottom-9 sm:right-12 lg:right-16">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] sm:text-[11px]">
-              Amora Capz
-            </p>
+        <div className="absolute bottom-7 right-6 text-right sm:bottom-9 sm:right-12 lg:right-16">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] sm:text-[11px]">
+            Amora Capz
+          </p>
 
-            <p className="mt-1 text-[8px] uppercase tracking-[0.3em] text-white/60 sm:text-[9px]">
-              Golf Collection
-            </p>
+          <p className="mt-1 text-[8px] uppercase tracking-[0.3em] text-white/60 sm:text-[9px]">
+            Golf Collection
+          </p>
 
-            <div className="ml-auto mt-2 h-px w-5 bg-white/70" />
-          </div>
+          <div className="ml-auto mt-2 h-px w-5 bg-white/70" />
         </div>
       </section>
 
       {/* Collection */}
-      <section id="shop" className="border-b border-white/[0.08] bg-[#090909]">
+      <section
+        id="shop"
+        className="border-b border-white/[0.08] bg-[#090909]"
+      >
         <div className="mx-auto max-w-[1400px] px-5 py-16 sm:px-12 sm:py-20 lg:px-14 lg:py-24">
           <div className="flex items-end justify-between">
             <div>
@@ -370,64 +379,80 @@ export default function Home() {
                 The Collection
               </h2>
             </div>
-
-            <a
-              href="#shop"
-              className="hidden items-center gap-2 text-[9px] font-medium uppercase tracking-[0.2em] text-white/70 transition hover:text-white sm:flex"
-            >
-              View all
-              <span className="text-sm">→</span>
-            </a>
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 lg:grid-cols-4">
-            {products.map((product) => (
-              <article key={product.id} className="group">
-                <button
-                  type="button"
-                  onClick={() => openProduct(product)}
-                  className="block w-full text-left"
-                >
-                  <div className="relative overflow-hidden bg-[#151515]">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="aspect-[0.82] w-full object-cover transition duration-700 group-hover:scale-[1.025]"
-                    />
+            {liveProducts.map((product) => {
+              const soldOut = !stockLoading && product.stock <= 0;
 
-                    <div className="absolute left-2 top-2 bg-black px-2.5 py-1.5 sm:left-3 sm:top-3 sm:px-3">
-                      <p className="text-[7px] font-medium uppercase tracking-[0.16em] sm:text-[8px] sm:tracking-[0.2em]">
-                        {product.tag}
-                      </p>
+              return (
+                <article key={product.id} className="group">
+                  <button
+                    type="button"
+                    onClick={() => openProduct(product)}
+                    disabled={soldOut}
+                    className="block w-full text-left disabled:cursor-not-allowed"
+                  >
+                    <div className="relative overflow-hidden bg-[#151515]">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className={`aspect-[0.82] w-full object-cover transition duration-700 group-hover:scale-[1.025] ${
+                          soldOut ? "opacity-45" : ""
+                        }`}
+                      />
+
+                      <div className="absolute left-2 top-2 bg-black px-2.5 py-1.5 sm:left-3 sm:top-3 sm:px-3">
+                        <p className="text-[7px] font-medium uppercase tracking-[0.16em] sm:text-[8px] sm:tracking-[0.2em]">
+                          {product.tag}
+                        </p>
+                      </div>
+
+                      {!stockLoading && (
+                        <div className="absolute bottom-3 left-3 bg-black/80 px-2.5 py-1.5 backdrop-blur sm:bottom-4 sm:left-4">
+                          <p className="text-[7px] font-medium uppercase tracking-[0.15em] text-white/80 sm:text-[8px]">
+                            {soldOut
+                              ? "Sold out"
+                              : product.stock <= 3
+                                ? `${product.stock} left`
+                                : "In stock"}
+                          </p>
+                        </div>
+                      )}
+
+                      {!soldOut && (
+                        <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border border-white bg-black/60 text-lg font-light leading-none backdrop-blur transition group-hover:bg-white group-hover:text-black sm:bottom-4 sm:right-4 sm:h-9 sm:w-9 sm:text-xl">
+                          +
+                        </span>
+                      )}
                     </div>
 
-                    <span className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full border border-white bg-black/60 text-lg font-light leading-none backdrop-blur transition group-hover:bg-white group-hover:text-black sm:bottom-4 sm:right-4 sm:h-9 sm:w-9 sm:text-xl">
-                      +
-                    </span>
-                  </div>
+                    <div className="mt-3 sm:mt-4">
+                      <h3 className="text-[9px] font-semibold uppercase tracking-[0.13em] sm:text-[10px] sm:tracking-[0.17em]">
+                        {product.name}
+                      </h3>
 
-                  <div className="mt-3 sm:mt-4">
-                    <h3 className="text-[9px] font-semibold uppercase tracking-[0.13em] sm:text-[10px] sm:tracking-[0.17em]">
-                      {product.name}
-                    </h3>
+                      <p className="mt-1.5 text-[10px] leading-4 text-white/55 sm:mt-2 sm:text-[11px]">
+                        {product.description}
+                      </p>
 
-                    <p className="mt-1.5 text-[10px] leading-4 text-white/55 sm:mt-2 sm:text-[11px]">
-                      {product.description}
-                    </p>
-
-                    <p className="mt-2 text-[9px] uppercase tracking-[0.12em] text-white/35 sm:mt-3">
-                      Price coming soon
-                    </p>
-                  </div>
-                </button>
-              </article>
-            ))}
+                      <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white sm:mt-3">
+                        £25.00
+                      </p>
+                    </div>
+                  </button>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* Our Story */}
-      <section id="about" className="border-b border-white/[0.08] bg-[#090909]">
+      <section
+        id="about"
+        className="border-b border-white/[0.08] bg-[#090909]"
+      >
         <div className="mx-auto grid max-w-[1400px] lg:grid-cols-2">
           <div className="relative min-h-[340px] overflow-hidden sm:min-h-[390px] lg:min-h-[460px]">
             <img
@@ -495,9 +520,8 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Four unique images only */}
           <div className="mt-8 grid grid-cols-2 gap-2 sm:mt-9 sm:grid-cols-4">
-            {products.map((product) => (
+            {liveProducts.map((product) => (
               <a
                 key={product.id}
                 href="https://www.instagram.com/amoracapz/"
@@ -630,11 +654,14 @@ export default function Home() {
                   {selectedProduct.description}
                 </p>
 
-                <p className="mt-7 text-xs uppercase tracking-[0.2em] text-white/40 sm:mt-8">
-                  Price coming soon
+                <p className="mt-7 text-lg font-medium sm:mt-8">
+                  £25.00
                 </p>
 
-                {/* Quantity */}
+                <p className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/45">
+                  {selectedProduct.stock} available
+                </p>
+
                 <div className="mt-7 sm:mt-8">
                   <p className="mb-3 text-[9px] font-medium uppercase tracking-[0.25em] text-white/50">
                     Quantity
@@ -648,7 +675,8 @@ export default function Home() {
                           Math.max(1, quantity - 1)
                         )
                       }
-                      className="flex h-11 w-11 items-center justify-center text-lg text-white/60 transition hover:text-white"
+                      disabled={selectedQuantity <= 1}
+                      className="flex h-11 w-11 items-center justify-center text-lg text-white/60 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       −
                     </button>
@@ -660,9 +688,14 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedQuantity((quantity) => quantity + 1)
+                        setSelectedQuantity((quantity) =>
+                          Math.min(selectedProduct.stock, quantity + 1)
+                        )
                       }
-                      className="flex h-11 w-11 items-center justify-center text-lg text-white/60 transition hover:text-white"
+                      disabled={
+                        selectedQuantity >= selectedProduct.stock
+                      }
+                      className="flex h-11 w-11 items-center justify-center text-lg text-white/60 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       +
                     </button>
@@ -674,7 +707,8 @@ export default function Home() {
                   onClick={() =>
                     addToCart(selectedProduct, selectedQuantity)
                   }
-                  className="mt-7 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85 sm:mt-8"
+                  disabled={selectedProduct.stock <= 0}
+                  className="mt-7 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/30 sm:mt-8"
                 >
                   Add to bag
                   <span className="text-base">→</span>
@@ -696,7 +730,6 @@ export default function Home() {
           />
 
           <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-white/10 bg-[#0d0d0d]">
-            {/* Bag Header */}
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-5 sm:px-7 sm:py-6">
               <div>
                 <p className="text-[9px] uppercase tracking-[0.3em] text-white/45">
@@ -717,7 +750,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Bag Contents */}
             <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-7 sm:py-6">
               {cart.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-center">
@@ -781,15 +813,20 @@ export default function Home() {
                         </div>
 
                         <p className="mt-1 text-[10px] text-white/40">
-                          Price coming soon
+                          £25.00 each
                         </p>
+
+                        <div className="mt-1 text-[9px] uppercase tracking-[0.15em] text-white/35">
+                          {item.stock} available
+                        </div>
 
                         <div className="mt-auto flex items-center justify-between pt-4">
                           <div className="flex items-center border border-white/15">
                             <button
                               type="button"
                               onClick={() => updateQuantity(item.id, -1)}
-                              className="flex h-8 w-8 items-center justify-center text-sm text-white/60 hover:text-white"
+                              disabled={item.quantity <= 1}
+                              className="flex h-8 w-8 items-center justify-center text-sm text-white/60 hover:text-white disabled:opacity-30"
                             >
                               −
                             </button>
@@ -801,11 +838,16 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() => updateQuantity(item.id, 1)}
-                              className="flex h-8 w-8 items-center justify-center text-sm text-white/60 hover:text-white"
+                              disabled={item.quantity >= item.stock}
+                              className="flex h-8 w-8 items-center justify-center text-sm text-white/60 hover:text-white disabled:opacity-30"
                             >
                               +
                             </button>
                           </div>
+
+                          <span className="text-sm font-medium">
+                            £{(item.quantity * CAP_PRICE).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -814,7 +856,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bag Footer */}
             {cart.length > 0 && (
               <div className="border-t border-white/10 px-6 py-5 sm:px-7 sm:py-6">
                 <div className="flex items-center justify-between">
@@ -822,22 +863,31 @@ export default function Home() {
                     Total
                   </span>
 
-                  <span className="text-sm font-medium">
-                    Price coming soon
+                  <span className="text-lg font-medium">
+                    £{cartTotal.toFixed(2)}
                   </span>
                 </div>
 
+                {checkoutError && (
+                  <p className="mt-4 text-center text-[10px] leading-5 text-red-400">
+                    {checkoutError}
+                  </p>
+                )}
+
                 <button
                   type="button"
-                  disabled
-                  className="mt-5 w-full cursor-not-allowed bg-white/20 px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/35"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading}
+                  className="mt-5 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85 disabled:cursor-wait disabled:opacity-50"
                 >
-                  Checkout unavailable
+                  {checkoutLoading ? "Opening checkout..." : "Checkout"}
+                  {!checkoutLoading && (
+                    <span className="text-base">→</span>
+                  )}
                 </button>
 
                 <p className="mt-4 text-center text-[9px] leading-5 text-white/30">
-                  Online payments will be connected when the store is ready
-                  to launch.
+                  Secure checkout powered by Stripe.
                 </p>
               </div>
             )}
