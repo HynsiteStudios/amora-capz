@@ -9,55 +9,15 @@ type Product = {
   tag: string;
   description: string;
   stock: number;
+  price: number;
 };
 
 type CartItem = Product & {
   quantity: number;
 };
 
-const products: Product[] = [
-  {
-    id: 1,
-    name: "Amora Golf Cap",
-    image: "/products/car-cap-1.jpg",
-    tag: "Bestseller",
-    description:
-      "The Amora Golf Cap — a clean, distinctive design made for the course and everyday wear.",
-    stock: 0,
-  },
-  {
-    id: 2,
-    name: "Amora Black Cap",
-    image: "/products/car-cap-2.jpg",
-    tag: "New",
-    description:
-      "The Amora Black Cap — an all-black everyday essential featuring the signature Amora logo.",
-    stock: 0,
-  },
-  {
-    id: 3,
-    name: "Amora Grey Cap",
-    image: "/products/car-cap-3.jpg",
-    tag: "New",
-    description:
-      "The Amora Grey Cap — a versatile neutral design with the signature Amora finish.",
-    stock: 0,
-  },
-  {
-    id: 4,
-    name: "Amora Navy Cap",
-    image: "/products/car-cap-4.jpg",
-    tag: "Limited",
-    description:
-      "The Amora Navy Cap — a darker statement piece designed for a clean, understated look.",
-    stock: 0,
-  },
-];
-
-const CAP_PRICE = 25;
-
 export default function Home() {
-  const [liveProducts, setLiveProducts] = useState<Product[]>(products);
+  const [liveProducts, setLiveProducts] = useState<Product[]>([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -67,42 +27,33 @@ export default function Home() {
   const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
-    async function loadStock() {
+    async function loadProducts() {
       try {
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/products", {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
-          throw new Error("Unable to load stock");
+          throw new Error("Unable to load products");
         }
 
-        const data = await response.json();
+        const data: Product[] = await response.json();
 
-        setLiveProducts(
-          products.map((product) => {
-            const liveProduct = data.find(
-              (item: { id: number }) => item.id === product.id
-            );
-
-            return {
-              ...product,
-              stock: liveProduct?.stock ?? 0,
-            };
-          })
-        );
+        setLiveProducts(data);
       } catch (error) {
-        console.error("Stock loading error:", error);
+        console.error("Product loading error:", error);
       } finally {
         setStockLoading(false);
       }
     }
 
-    loadStock();
+    loadProducts();
   }, []);
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   const cartTotal = cart.reduce(
-    (total, item) => total + item.quantity * CAP_PRICE,
+    (total, item) => total + item.quantity * item.price,
     0
   );
 
@@ -133,6 +84,8 @@ export default function Home() {
           item.id === product.id
             ? {
                 ...item,
+                price: product.price,
+                stock: product.stock,
                 quantity: newQuantity,
               }
             : item
@@ -437,7 +390,7 @@ export default function Home() {
                       </p>
 
                       <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white sm:mt-3">
-                        £25.00
+                        £{(product.price / 100).toFixed(2)}
                       </p>
                     </div>
                   </button>
@@ -655,7 +608,7 @@ export default function Home() {
                 </p>
 
                 <p className="mt-7 text-lg font-medium sm:mt-8">
-                  £25.00
+                  £{(selectedProduct.price / 100).toFixed(2)}
                 </p>
 
                 <p className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/45">
@@ -692,9 +645,7 @@ export default function Home() {
                           Math.min(selectedProduct.stock, quantity + 1)
                         )
                       }
-                      disabled={
-                        selectedQuantity >= selectedProduct.stock
-                      }
+                      disabled={selectedQuantity >= selectedProduct.stock}
                       className="flex h-11 w-11 items-center justify-center text-lg text-white/60 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       +
@@ -813,7 +764,7 @@ export default function Home() {
                         </div>
 
                         <p className="mt-1 text-[10px] text-white/40">
-                          £25.00 each
+                          £{(item.price / 100).toFixed(2)} each
                         </p>
 
                         <div className="mt-1 text-[9px] uppercase tracking-[0.15em] text-white/35">
@@ -846,7 +797,11 @@ export default function Home() {
                           </div>
 
                           <span className="text-sm font-medium">
-                            £{(item.quantity * CAP_PRICE).toFixed(2)}
+                            £
+                            {(
+                              (item.quantity * item.price) /
+                              100
+                            ).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -864,7 +819,7 @@ export default function Home() {
                   </span>
 
                   <span className="text-lg font-medium">
-                    £{cartTotal.toFixed(2)}
+                    £{(cartTotal / 100).toFixed(2)}
                   </span>
                 </div>
 
@@ -881,9 +836,7 @@ export default function Home() {
                   className="mt-5 flex w-full items-center justify-center gap-3 bg-white px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.25em] text-black transition hover:bg-white/85 disabled:cursor-wait disabled:opacity-50"
                 >
                   {checkoutLoading ? "Opening checkout..." : "Checkout"}
-                  {!checkoutLoading && (
-                    <span className="text-base">→</span>
-                  )}
+                  {!checkoutLoading && <span className="text-base">→</span>}
                 </button>
 
                 <p className="mt-4 text-center text-[9px] leading-5 text-white/30">

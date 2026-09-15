@@ -88,6 +88,7 @@ export async function POST(req: Request) {
           SELECT id, name, price_pence, stock
           FROM products
           WHERE id = ANY($1::int[])
+            AND active = TRUE
           FOR UPDATE
         `,
         [productIds]
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
 
       if (products.length !== items.length) {
         throw new Error(
-          "One or more products could not be found."
+          "One or more products are no longer available."
         );
       }
 
@@ -132,7 +133,9 @@ export async function POST(req: Request) {
         );
 
         if (!product) {
-          throw new Error("Product not found.");
+          throw new Error(
+            "This product is no longer available."
+          );
         }
 
         const reserved =
@@ -197,7 +200,9 @@ export async function POST(req: Request) {
         );
 
         if (!product) {
-          throw new Error("Product not found.");
+          throw new Error(
+            "This product is no longer available."
+          );
         }
 
         return {
